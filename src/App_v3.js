@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
 import { useMovies } from "./useMovies";
 import { useLocalStorageState } from "./useLocalStorageState";
-import { useKey } from "./useKey";
 
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
@@ -23,12 +22,10 @@ export default function App() {
   // const [watched, setWatched] = useState([]);
   //React will call this function here on the inital render and we will use whatever value is returned from this function as the initial value of the state. And this function actually needs to be a pure function and cannot receive any arguments. Passing arguments will not work. Thhis function is only executed oce on the inital render and ingore on subsequent re-renders.
 
-  // const [watched, setWatched] = useState(function () {
-  //   const storedValue = localStorage.getItem("watched");
-  //   return JSON.parse(storedValue); // the local storage is a string with JSON.stringigy and then when we get the data back we need to convert it back by doing JSON.parse.
-  // });
-
-  const [watched, setWatched] = useLocalStorageState([], "watched");
+  const [watched, setWatched] = useState(function () {
+    const storedValue = localStorage.getItem("watched");
+    return JSON.parse(storedValue); // the local storage is a string with JSON.stringigy and then when we get the data back we need to convert it back by doing JSON.parse.
+  });
 
   function handleSelectMovie(id) {
     //setSelectedId(id); doing this we only select the id, but.. if we click again we desselect(closes), look at it!
@@ -53,10 +50,10 @@ export default function App() {
     );
   }
 
-  // useEffect(() => {
-  //   //it's fantastic becuase it works well for both: add and delete from localstorage!
-  //   localStorage.setItem("watched", JSON.stringify(watched));
-  // }, [watched]);
+  useEffect(() => {
+    //it's fantastic becuase it works well for both: add and delete from localstorage!
+    localStorage.setItem("watched", JSON.stringify(watched));
+  }, [watched]);
 
   return (
     <>
@@ -139,31 +136,23 @@ function Logo() {
 function Search({ query, setQuery }) {
   const inputEl = useRef(null);
 
-  useKey("Enter", function () {
-    if (document.activeElement === inputEl.current) return; //don't do anything
+  useEffect(() => {
+    //we need to useefect in order to use a ref that contains a DOM element like this one becuase the ref only gets added to this DOM element here after the DOM has already loaded. And sso therefore we can only access it in effect wich also runs after the DOM has been loaded. This is the perfect place for using a ref that contains a DOM element.
 
-    // console.log(inputEl.current);
-    inputEl.current.focus();
-    setQuery("");
-  });
+    function callback(e) {
+      //we use a callback because we could clean up after our event.
+      if (e.code === "Enter") {
+        if (document.activeElement === inputEl.current) return; //don't do anything
 
-  // useEffect(() => {
-  //   //we need to useefect in order to use a ref that contains a DOM element like this one becuase the ref only gets added to this DOM element here after the DOM has already loaded. And sso therefore we can only access it in effect wich also runs after the DOM has been loaded. This is the perfect place for using a ref that contains a DOM element.
+        console.log(inputEl.current);
+        inputEl.current.focus();
+        setQuery("");
+      }
+    }
 
-  //   function callback(e) {
-  //     //we use a callback because we could clean up after our event.
-  //     if (e.code === "Enter") {
-  //       if (document.activeElement === inputEl.current) return; //don't do anything
-
-  //       console.log(inputEl.current);
-  //       inputEl.current.focus();
-  //       setQuery("");
-  //     }
-  //   }
-
-  //   document.addEventListener("keydown", callback);
-  //   return () => document.addEventListener("keydown", callback);
-  // }, [setQuery]);
+    document.addEventListener("keydown", callback);
+    return () => document.addEventListener("keydown", callback);
+  }, [setQuery]);
 
   // useEffect(() => {
   //   const el = document.querySelector(".search");
@@ -323,26 +312,24 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
 
     // alert(avgRating);
   }
-  // //we add an event listerner to listen key key ESCAPE to exit from the movie selected
-  // useEffect(
-  //   function () {
-  //     function callback(e) {
-  //       if (e.code === "Escape") {
-  //         onCloseMovie();
-  //         console.log("CLOSING");
-  //       }
-  //     }
+  //we add an event listerner to listen key key ESCAPE to exit from the movie selected
+  useEffect(
+    function () {
+      function callback(e) {
+        if (e.code === "Escape") {
+          onCloseMovie();
+          console.log("CLOSING");
+        }
+      }
 
-  //     document.addEventListener("keydown", callback);
+      document.addEventListener("keydown", callback);
 
-  //     return function () {
-  //       document.removeEventListener("keydown", callback); //the eventlistener must be removed, because if not it creates again and again many event listeners.
-  //     };
-  //   },
-  //   [onCloseMovie]
-  // );
-
-  useKey("Escape", onCloseMovie);
+      return function () {
+        document.removeEventListener("keydown", callback); //the eventlistener must be removed, because if not it creates again and again many event listeners.
+      };
+    },
+    [onCloseMovie]
+  );
 
   useEffect(() => {
     async function getMovieDetails() {

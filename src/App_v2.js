@@ -1,8 +1,52 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import StarRating from "./StarRating";
-import { useMovies } from "./useMovies";
-import { useLocalStorageState } from "./useLocalStorageState";
-import { useKey } from "./useKey";
+
+const tempMovieData = [
+  {
+    imdbID: "tt1375666",
+    Title: "Inception",
+    Year: "2010",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg",
+  },
+  {
+    imdbID: "tt0133093",
+    Title: "The Matrix",
+    Year: "1999",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVkLWI0MTEtMDllZjNkYzNjNTc4L2ltYWdlXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg",
+  },
+  {
+    imdbID: "tt6751668",
+    Title: "Parasite",
+    Year: "2019",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BYWZjMjk3ZTItODQ2ZC00NTY5LWE0ZDYtZTI3MjcwN2Q5NTVkXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_SX300.jpg",
+  },
+];
+
+const tempWatchedData = [
+  {
+    imdbID: "tt1375666",
+    Title: "Inception",
+    Year: "2010",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg",
+    runtime: 148,
+    imdbRating: 8.8,
+    userRating: 10,
+  },
+  {
+    imdbID: "tt0088763",
+    Title: "Back to the Future",
+    Year: "1985",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BZmU0M2Y1OGUtZjIxNi00ZjBkLTg1MjgtOWIyNThiZWIwYjRiXkEyXkFqcGdeQXVyMTQxNzMzNDI@._V1_SX300.jpg",
+    runtime: 116,
+    imdbRating: 8.5,
+    userRating: 9,
+  },
+];
 
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
@@ -11,24 +55,37 @@ const KEY = "971de975";
 
 // estructural component
 export default function App() {
+  const [movies, setMovies] = useState(tempMovieData);
+  const [watched, setWatched] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  // const query = "inter";
 
-  //remember we can use the handleclosemovie function before it is actually defined because remember function decalrations in javascript like this are hoisted.
-  // REMEMBER: The function expressions and arrow functions cannot be hoisted. On the other hand, all the variables in javascript are hoisted. So, in these cases, better use function declarations.
-  // const { movies, isLoading, error } = useMovies(query, handleCloseMovie);
+  // start Some reminders how useEffec works, ok????
+  useEffect(function () {
+    console.log("after initial render");
+  }, []);
 
-  const { movies, isLoading, error } = useMovies(query);
+  useEffect(function () {
+    console.log("after every render1");
+  });
 
-  // const [watched, setWatched] = useState([]);
-  //React will call this function here on the inital render and we will use whatever value is returned from this function as the initial value of the state. And this function actually needs to be a pure function and cannot receive any arguments. Passing arguments will not work. Thhis function is only executed oce on the inital render and ingore on subsequent re-renders.
+  console.log("during the render");
+  //Finishing Some reminders how useEffec works, ok????
 
-  // const [watched, setWatched] = useState(function () {
-  //   const storedValue = localStorage.getItem("watched");
-  //   return JSON.parse(storedValue); // the local storage is a string with JSON.stringigy and then when we get the data back we need to convert it back by doing JSON.parse.
-  // });
+  // fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=?interstellar`)
+  //   .then((res) => res.json())
+  //   .then((data) => console.log(data));
 
-  const [watched, setWatched] = useLocalStorageState([], "watched");
+  // useEffect(() => {}, []);
+
+  // useEffect(function () {
+  //   fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=?interstellar`)
+  //     .then((res) => res.json())
+  //     .then((data) => setMovies(data.Search));
+  // }, []); //empty array means will only run on mount(renders for the very first time)
 
   function handleSelectMovie(id) {
     //setSelectedId(id); doing this we only select the id, but.. if we click again we desselect(closes), look at it!
@@ -42,8 +99,6 @@ export default function App() {
 
   function handleAddWatch(movie) {
     setWatched((currwatchedmovies) => [...currwatchedmovies, movie]); //we get the current watched movies array and then we create a brand-new one based on that one...
-
-    // localStorage.setItem("watched", JSON.stringify([...watched, movie])); // we need to build a new arrray based on the watched, so the current state plus the new movie (the same done before). And then we need to convert into a string because in localstorage we can only store key value pairs where the value is a string. I comment out because the idea is to it using a new effect
   }
 
   function handleDeleteWatched(id) {
@@ -53,10 +108,54 @@ export default function App() {
     );
   }
 
-  // useEffect(() => {
-  //   //it's fantastic becuase it works well for both: add and delete from localstorage!
-  //   localStorage.setItem("watched", JSON.stringify(watched));
-  // }, [watched]);
+  useEffect(
+    function () {
+      const controller = new AbortController();
+
+      //converting to promises to an async function
+      async function fetchMovies() {
+        try {
+          setIsLoading(true);
+          setError("");
+          const res = await fetch(
+            `http://www.omdbapi.com/?apikey=${KEY}&s=?${query}`,
+            { signal: controller.signal }
+          );
+
+          if (!res.ok)
+            throw new Error("something went wrong with fetching movies"); // this is to get error in case fexample error connection.
+
+          const data = await res.json();
+          if (data.Response === "False") throw new Error("Movie not found");
+
+          setMovies(data.Search);
+          setError("");
+          // console.log(data);
+          console.log(data.Search);
+        } catch (err) {
+          console.log(err.message);
+          if (err.name !== "AbortError") {
+            setError(err.message);
+          }
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      if (query.length < 3) {
+        setMovies([]);
+        setError("");
+        return;
+      }
+      handleCloseMovie();
+      fetchMovies();
+
+      // Between each of these re-renders, this function here (the cleanup function) will get called. It means that each time there is a new keystroke, so a new re-render, our controlloer will abort the current fetch request. We want to cancel the current request each time that a new one comes in.
+      return function () {
+        controller.abort();
+      };
+    },
+    [query]
+  );
 
   return (
     <>
@@ -137,40 +236,6 @@ function Logo() {
 }
 //statefull component
 function Search({ query, setQuery }) {
-  const inputEl = useRef(null);
-
-  useKey("Enter", function () {
-    if (document.activeElement === inputEl.current) return; //don't do anything
-
-    // console.log(inputEl.current);
-    inputEl.current.focus();
-    setQuery("");
-  });
-
-  // useEffect(() => {
-  //   //we need to useefect in order to use a ref that contains a DOM element like this one becuase the ref only gets added to this DOM element here after the DOM has already loaded. And sso therefore we can only access it in effect wich also runs after the DOM has been loaded. This is the perfect place for using a ref that contains a DOM element.
-
-  //   function callback(e) {
-  //     //we use a callback because we could clean up after our event.
-  //     if (e.code === "Enter") {
-  //       if (document.activeElement === inputEl.current) return; //don't do anything
-
-  //       console.log(inputEl.current);
-  //       inputEl.current.focus();
-  //       setQuery("");
-  //     }
-  //   }
-
-  //   document.addEventListener("keydown", callback);
-  //   return () => document.addEventListener("keydown", callback);
-  // }, [setQuery]);
-
-  // useEffect(() => {
-  //   const el = document.querySelector(".search");
-  //   console.log(el);
-  //   el.focus();
-  // }, []);
-
   return (
     <input
       className="search"
@@ -178,7 +243,6 @@ function Search({ query, setQuery }) {
       placeholder="Search movies..."
       value={query}
       onChange={(e) => setQuery(e.target.value)}
-      ref={inputEl}
     />
   );
 }
@@ -261,17 +325,6 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
   const [movie, setMovie] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [userRating, setUserRating] = useState("");
-
-  const countRef = useRef(0); //varialbe that is persisted across renders without triggering a re-render. In this case we store the amount of clicks that happended on the rating before the movie is added but we don't want to render that information on the user interface.or in other owrds, we do not want to create a re-render. that's why a ref is perfect for this.
-
-  //we use the useEffect because we are not allowed to mutate the ref in render logic.
-  useEffect(
-    function () {
-      if (userRating) countRef.current = countRef.current + 1;
-    },
-    [userRating]
-  );
-
   // let's do some destructure:
   const {
     Title: title,
@@ -295,12 +348,6 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
     (movie) => movie.imdbID === selectedId
   )?.userRating; //we use optional chaining. there might be no movie already in the list
 
-  //NEVER TO THAT!!!! the hooks are ordered by position, not by name.
-  //another thing to remember: the initial state value is only been looked at by React in the very beginning (only on component mount)
-  // if(imdbRating > 8) [isTop, setIsTop] = useState(true)
-
-  // const [avgRating, setAvgRating] = useState(0);
-
   function handleAdd() {
     const newWatchedMovied = {
       imdbID: selectedId,
@@ -310,39 +357,28 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
       poster,
       runtime: Number(runtime.split("").at(0)),
       userRating,
-      countRatingDecisions: countRef.current,
     };
     onAddWatched(newWatchedMovied);
     onCloseMovie();
-
-    //this is a simple reminder that usestate is aysncronous. when doing the avgrating + userating / 2 avgrating remains as 0... to solve need a callback!!!
-    // setAvgRating(Number(imdbRating));
-    // setAvgRating((avgRating + userRating) / 2);
-    // //SOLUTION! the callback!!!! remmeber,
-    // setAvgRating((currAvgRating) => (currAvgRating + userRating) / 2);
-
-    // alert(avgRating);
   }
-  // //we add an event listerner to listen key key ESCAPE to exit from the movie selected
-  // useEffect(
-  //   function () {
-  //     function callback(e) {
-  //       if (e.code === "Escape") {
-  //         onCloseMovie();
-  //         console.log("CLOSING");
-  //       }
-  //     }
+  //we add an event listerner to listen key key ESCAPE to exit from the movie selected
+  useEffect(
+    function () {
+      function callback(e) {
+        if (e.code === "Escape") {
+          onCloseMovie();
+          console.log("CLOSING");
+        }
+      }
 
-  //     document.addEventListener("keydown", callback);
+      document.addEventListener("keydown", callback);
 
-  //     return function () {
-  //       document.removeEventListener("keydown", callback); //the eventlistener must be removed, because if not it creates again and again many event listeners.
-  //     };
-  //   },
-  //   [onCloseMovie]
-  // );
-
-  useKey("Escape", onCloseMovie);
+      return function () {
+        document.removeEventListener("keydown", callback); //the eventlistener must be removed, because if not it creates again and again many event listeners.
+      };
+    },
+    [onCloseMovie]
+  );
 
   useEffect(() => {
     async function getMovieDetails() {
@@ -391,7 +427,6 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
               </p>
             </div>
           </header>
-          {/* <p>{avgRating}</p> */}
           <section>
             <div className="rating">
               {!isWatched ? (
@@ -492,9 +527,7 @@ function WatchedMovie({ movie, onDeleteWatched }) {
         <button
           className="btn-delete"
           onClick={() => onDeleteWatched(movie.imdbID)}
-        >
-          X
-        </button>
+        ></button>
       </div>
     </li>
   );
